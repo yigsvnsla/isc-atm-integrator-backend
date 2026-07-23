@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from '@nestjs/config';
 import { ClsModule } from 'nestjs-cls';
@@ -15,6 +15,7 @@ import { AuthModule } from './features/auth/auth.module';
 import { NotificationsModule } from '@features/notifications/notifications.module';
 import { ConciliationModule } from '@features/conciliation/conciliation.module';
 import { AllExceptionsFilter } from '@shared/core/exceptions/exception-filter';
+import { HttpLoggingInterceptor } from '@shared/core/http-logging/http-logging.interceptor';
 import { HealthModule } from '@infrastructure/health/health.module';
 
 @Module({
@@ -48,6 +49,10 @@ import { HealthModule } from '@infrastructure/health/health.module';
         {
             provide: APP_FILTER,
             useClass: AllExceptionsFilter,
+        },
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: HttpLoggingInterceptor,
         },
     ],
 })

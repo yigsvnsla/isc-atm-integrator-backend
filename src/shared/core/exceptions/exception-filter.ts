@@ -26,8 +26,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         const responseBody = {
             id: this.cls.getId() || 'unknown',
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            path: httpAdapter.getRequestUrl(ctx.getRequest()),
+            path: String(httpAdapter.getRequestUrl(ctx.getRequest())),
             code: HttpStatus[httpException.getStatus()],
             status: httpException.getStatus(),
             message: httpException.message,

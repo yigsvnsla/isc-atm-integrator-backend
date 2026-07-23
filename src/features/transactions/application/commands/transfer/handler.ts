@@ -38,7 +38,7 @@ export class TransferHandler
         @Inject(BANK_ACCOUNT_REPOSITORY)
         private readonly accountRepository: IBankAccountRepository,
         private readonly cacheResult: CacheResultService,
-        private readonly configService: ConfigService,
+        private readonly configService: AppConfigService,
     ) {
         super([
             new CircuitBreakerStrategy({
@@ -69,9 +69,7 @@ export class TransferHandler
             );
         }
 
-        const validateBalance = (
-            this.configService as unknown as AppConfigService
-        ).get('features.validateBalance', { infer: true });
+        const validateBalance = this.configService.get('features.validateBalance', { infer: true });
 
         if (validateBalance && fromAccount.balance < command.amount) {
             throw new ConflictException(

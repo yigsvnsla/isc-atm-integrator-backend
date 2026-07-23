@@ -1,0 +1,25 @@
+{
+    "pgsql.connections": [
+        {
+            "id": "451FB437-8711-4A76-9E08-BCCD1BA8FC4C",
+            "groupId": "BB17C73F-3558-4EDD-AC22-A918977766ED",
+            "authenticationType": "SqlLogin",
+            "connectTimeout": 15,
+            "applicationName": "vscode-pgsql",
+            "clientEncoding": "utf8",
+            "sslmode": "disable",
+            "sshSavePassword": true,
+            "savePassword": true,
+            "sslRootCertMode": "none",
+            "server": "isc-lab-atm-integrator-nzyljc",
+            "user": "admin",
+            "password": "",
+            "database": "isc-atm-integrator",
+            "profileName": "isc-lab-atm-integrator-nzyljc",
+            "port": "5454",
+            "hostaddr": "147.93.181.146",
+            "expiresOn": 0,
+            "sshPassword": ""
+        }
+    ]
+}
