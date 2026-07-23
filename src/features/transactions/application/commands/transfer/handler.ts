@@ -25,7 +25,6 @@ import { BANK_ACCOUNT_REPOSITORY } from '@features/accounts/domain/account.repos
 import type { IBankAccountRepository } from '@features/accounts/domain/account.repository';
 import { ResponseMetadataBuilder } from '@shared/core/response/api-response-metadata-builder';
 import { CacheResultService } from '@core/cache/cache-result.service';
-import type { AppConfigService } from '@shared/core/types';
 
 @CommandHandler(TransferCommand)
 export class TransferHandler
@@ -38,7 +37,7 @@ export class TransferHandler
         @Inject(BANK_ACCOUNT_REPOSITORY)
         private readonly accountRepository: IBankAccountRepository,
         private readonly cacheResult: CacheResultService,
-        private readonly configService: AppConfigService,
+        private readonly configService: ConfigService,
     ) {
         super([
             new CircuitBreakerStrategy({
