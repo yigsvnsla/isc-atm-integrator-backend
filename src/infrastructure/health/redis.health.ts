@@ -23,7 +23,7 @@ export class RedisHealthIndicator {
                 this.indicatorVal,
                 this.indicatorTtl,
             );
-            const result = await this.cacheManager.get('health:ping');
+            const result = await this.cacheManager.get(this.indicatorKey);
 
             if (result !== this.indicatorVal) {
                 throw new Error('Redis health check failed');
