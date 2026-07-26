@@ -34,7 +34,9 @@ async function bootstrap() {
 
     void swaggerSetup(app);
 
-    await app.listen(appPort);
+    await app.listen(appPort, '0.0.0.0', () => {
+        console.log({ appPort });
+    });
 }
 
 void bootstrap();
