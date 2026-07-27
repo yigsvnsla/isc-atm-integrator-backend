@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ClsModule } from 'nestjs-cls';
 import { ResilienceModule } from 'nestjs-resilience';
 import configuration from '@infrastructure/config/configuration';
+import { configValidationSchema } from '@infrastructure/config/configuration.validation';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
 import { OrdersModule } from './features/orders/orders.module';
@@ -34,6 +35,12 @@ import { HealthModule } from '@infrastructure/health/health.module';
             load: [configuration],
             isGlobal: true,
             cache: true,
+            validationSchema: configValidationSchema,
+            validationOptions: {
+                abortEarly: true,
+                allowUnknown: true,
+                convert: true, // Convert string env vars to their proper types
+            },
         }),
         CacheModule,
         OrdersModule,

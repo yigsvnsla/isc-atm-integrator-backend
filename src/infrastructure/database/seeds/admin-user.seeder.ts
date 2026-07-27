@@ -13,8 +13,7 @@ export default class AdminUserSeeder implements Seeder {
         const profileRepo = dataSource.getRepository(AuthProfileEntity);
         const upRepo = dataSource.getRepository(UserProfileEntity);
 
-        const email =
-            process.env.APP_SEED_ADMIN_EMAIL ?? 'admin@atm-integrator.local';
+        const email = process.env.APP_SEED_ADMIN_EMAIL;
         const existing = await userRepo.findOneBy({ email });
         if (existing) {
             console.log(`Admin user already exists (${email}). Skipping.`);
@@ -34,7 +33,14 @@ export default class AdminUserSeeder implements Seeder {
             return;
         }
 
-        const password = process.env.APP_SEED_ADMIN_PASSWORD ?? 'admin123';
+        const password = process.env.APP_SEED_ADMIN_PASSWORD;
+        if (!password) {
+            console.warn(
+                'APP_SEED_ADMIN_PASSWORD not set. Skipping admin user seed.',
+            );
+            return;
+        }
+
         const passwordHash = await bcrypt.hash(password, 12);
 
         const user = await userRepo.save({
@@ -46,7 +52,7 @@ export default class AdminUserSeeder implements Seeder {
             agreementId: agreement.id,
             createdAt: new Date(),
             updatedAt: new Date(),
-        });
+        } as AuthUserEntity);
 
         await upRepo.save({
             userId: user.id,

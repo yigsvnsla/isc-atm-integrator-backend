@@ -15,9 +15,6 @@ export class DatabaseModule {
                         const pg = configService.get('database.postgres', {
                             infer: true,
                         });
-                        const isDev = configService.get('app.isDevMode', {
-                            infer: true,
-                        });
 
                         return {
                             type: 'postgres',
@@ -27,7 +24,7 @@ export class DatabaseModule {
                             password: pg.password,
                             database: pg.name,
                             autoLoadEntities: true,
-                            synchronize: isDev,
+                            synchronize: pg.synchronize,
                             connectTimeoutMS: 5000,
                             retryAttempts: 5,
 

@@ -1,77 +1,82 @@
-export default () => ({
-    features: {
-        validateBalance: process.env.FEATURE_VALIDATE_BALANCE !== 'false',
-    },
+import { IAppConfig } from './config.interface';
 
-    app: {
-        isDevMode: process.env.NODE_ENV === 'development',
-    },
+/**
+ * Configuration factory function
+ * Returns strongly-typed configuration object from validated environment variables
+ *
+ * Validation happens in app.module.ts via ConfigModule.forRoot({validationSchema})
+ * If validation fails, the app will not start (error logged to console)
+ */
+export default (): IAppConfig => {
+    // Note: By this point, all env vars have been validated by Joi
+    // If we reach here, validation passed and vars are guaranteed to exist
+    // (or have defaults from the schema)
 
-    server: {
-        port: parseInt(String(process.env.APP_SERVER_PORT), 10) || 7000,
-        prefix: String(process.env.APP_SERVER_PREFIX ?? '/api'),
-        cors: {
-            origin: String(process.env.APP_CORS_ORIGIN ?? '*'),
-            methods: String(
-                process.env.APP_CORS_METHODS ??
-                    'GET,HEAD,PUT,PATCH,POST,DELETE',
-            ),
-            credentials: process.env.APP_CORS_CREDENTIALS === 'true',
-        },
-    },
+    const nodeEnv = process.env.NODE_ENV ?? 'development';
 
-    cache: {
-        redis: {
-            host: String(
-                process.env.APP_CACHE_REDIS_HOST ?? 'redis://localhost:6379',
-            ),
+    return {
+        features: {
+            validateBalance: process.env.FEATURE_VALIDATE_BALANCE === 'true',
+        },
 
-            ttl:
-                parseInt(String(process.env.APP_CACHE_REDIS_TTL), 10) || 60_000,
+        app: {
+            isDevMode: nodeEnv === 'development',
         },
-    },
 
-    database: {
-        type: String(process.env.DB_TYPE ?? 'postgres'),
-        postgres: {
-            host: String(process.env.DB_HOST ?? 'localhost'),
-            port: parseInt(String(process.env.DB_PORT ?? '5432'), 10),
-            username: String(process.env.DB_USERNAME ?? 'postgres'),
-            password: String(process.env.DB_PASSWORD ?? 'postgres'),
-            name: String(process.env.DB_NAME ?? 'isc_atm'),
-            synchronize: process.env.NODE_ENV !== 'production',
+        server: {
+            port: parseInt(String(process.env.APP_SERVER_PORT), 10),
+            prefix: String(process.env.APP_SERVER_PREFIX),
+            cors: {
+                origin: String(process.env.APP_CORS_ORIGIN),
+                methods: String(process.env.APP_CORS_METHODS),
+                credentials: process.env.APP_CORS_CREDENTIALS === 'true',
+            },
         },
-        migrations: {
-            dir: String(
-                process.env.TYPEORM_MIGRATIONS_DIR ??
-                    'src/infrastructure/database/migrations',
-            ),
-            tableName: String(
-                process.env.TYPEORM_MIGRATIONS_TABLE_NAME ??
-                    'typeorm_migrations',
-            ),
-        },
-    },
 
-    security: {
-        jwt: {
-            secret: String(
-                process.env.APP_JWT_SECRET ??
-                    'atm-integrator-jwt-secret-change-in-prod',
-            ),
-            expiresIn: String(process.env.APP_JWT_EXPIRES_IN ?? '15m'),
-            refreshExpiresIn: parseInt(
-                String(process.env.APP_JWT_REFRESH_EXPIRES_IN ?? '604800'),
-                10,
-            ),
+        cache: {
+            redis: {
+                host: String(process.env.APP_CACHE_REDIS_HOST),
+                ttl: parseInt(String(process.env.APP_CACHE_REDIS_TTL), 10),
+            },
         },
-        csrf: {
-            enabled: process.env.APP_CSRF_ENABLED !== 'false',
-            secret: String(
-                process.env.APP_CSRF_SECRET ??
-                    'atm-integrator-csrf-secret-change-in-prod',
-            ),
-            cookieName: String(process.env.APP_CSRF_COOKIE ?? 'x-csrf-token'),
+
+        database: {
+            postgres: {
+                host: String(process.env.DB_HOST),
+                port: parseInt(String(process.env.DB_PORT), 10),
+                username: String(process.env.DB_USERNAME),
+                password: String(process.env.DB_PASSWORD),
+                name: String(process.env.DB_NAME),
+                synchronize: false,
+            },
+            migrations: {
+                dir: String(process.env.TYPEORM_MIGRATIONS_DIR),
+                tableName: String(process.env.TYPEORM_MIGRATIONS_TABLE_NAME),
+            },
         },
-    },
-});
+
+        security: {
+            jwt: {
+                secret: String(process.env.APP_JWT_SECRET),
+                expiresIn: String(process.env.APP_JWT_EXPIRES_IN),
+                refreshExpiresIn: parseInt(
+                    String(process.env.APP_JWT_REFRESH_EXPIRES_IN),
+                    10,
+                ),
+            },
+            csrf: {
+                enabled: process.env.APP_CSRF_ENABLED === 'true',
+                secret: String(process.env.APP_CSRF_SECRET),
+                cookieName: String(process.env.APP_CSRF_COOKIE),
+            },
+        },
+
+        ...(process.env.APP_SEED_ADMIN_EMAIL &&
+            process.env.APP_SEED_ADMIN_PASSWORD && {
+                seed: {
+                    adminEmail: String(process.env.APP_SEED_ADMIN_EMAIL),
+                    adminPassword: String(process.env.APP_SEED_ADMIN_PASSWORD),
+                },
+            }),
+    };
+};
