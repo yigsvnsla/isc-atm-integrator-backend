@@ -13,12 +13,14 @@ import { GetTransactionsHandler } from './application/queries/get-transactions/h
 import { GetTransactionByIdHandler } from './application/queries/get-transaction-by-id/handler';
 import { BankAccountsModule } from '../accounts/accounts.module';
 import { CacheResultService } from '@shared/core/cache/cache-result.service';
+import { OutboxModule } from '@shared/outbox';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([TransactionEntity]),
         CqrsModule,
         BankAccountsModule,
+        OutboxModule,
     ],
     controllers: [TransactionsController],
     providers: [

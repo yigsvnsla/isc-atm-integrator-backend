@@ -3,6 +3,7 @@ import { RunConciliationHandler } from '../handler';
 import { RunConciliationCommand } from '../command';
 import { CONCILIATION_REPOSITORY } from '../../../../domain/conciliation.repository';
 import { TRANSACTION_REPOSITORY } from '@features/transactions/domain/transaction.repository';
+import { BANK_ACCOUNT_REPOSITORY } from '@features/accounts/domain/account.repository';
 import { InMemoryConciliationRepository } from '../../../../infrastructure/persistence/__tests__/in-memory/conciliation.repository';
 import { InMemoryTransactionRepository } from '@features/transactions/infrastructure/persistence/__tests__/in-memory/transaction.repository';
 import {
@@ -10,8 +11,9 @@ import {
     TRANSACTION_OPERATION,
     TRANSACTION_STATE,
 } from '@features/transactions/domain/transaction';
-
-const nonNullAmount = (tx: { amount?: number }): number => tx.amount ?? 0;
+import { OutboxService } from '@shared/outbox';
+import { BankAccount } from '@features/accounts/domain/account';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 function buildTx(
     overrides: Partial<{
@@ -56,9 +58,26 @@ describe('RunConciliationHandler', () => {
     let txRepo: InMemoryTransactionRepository;
     let conciliationRepo: InMemoryConciliationRepository;
 
+    let accountRepo: { findById: jest.Mock };
+
     beforeEach(async () => {
         txRepo = new InMemoryTransactionRepository();
         conciliationRepo = new InMemoryConciliationRepository();
+        accountRepo = {
+            findById: jest
+                .fn()
+                .mockResolvedValue(
+                    BankAccount.Builder.setId(crypto.randomUUID())
+                        .setReference('ACC')
+                        .setType('checking')
+                        .setBalance(0)
+                        .setState('active')
+                        .setAgreementId('agr-1')
+                        .setCreatedAt(new Date())
+                        .setUpdatedAt(new Date())
+                        .build(),
+                ),
+        };
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -67,6 +86,15 @@ describe('RunConciliationHandler', () => {
                 {
                     provide: CONCILIATION_REPOSITORY,
                     useValue: conciliationRepo,
+                },
+                { provide: BANK_ACCOUNT_REPOSITORY, useValue: accountRepo },
+                {
+                    provide: OutboxService,
+                    useValue: { save: jest.fn().mockResolvedValue(undefined) },
+                },
+                {
+                    provide: EventEmitter2,
+                    useValue: { emit: jest.fn() },
                 },
             ],
         }).compile();

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateTransactionHandler } from '../handler';
 import { CreateTransactionCommand } from '../command';
 import { TRANSACTION_REPOSITORY } from '@features/transactions/domain/transaction.repository';
@@ -8,6 +9,7 @@ import { BANK_ACCOUNT_REPOSITORY } from '@features/accounts/domain/account.repos
 import { InMemoryTransactionRepository } from '@features/transactions/infrastructure/persistence/__tests__/in-memory/transaction.repository';
 import { InMemoryBankAccountRepository } from '@features/accounts/infrastructure/persistence/__tests__/in-memory/bank-account.repository';
 import { CacheResultService } from '@shared/core/cache/cache-result.service';
+import { OutboxService } from '@shared/outbox';
 import {
     BankAccount,
     ACCOUNT_TYPE,
@@ -25,6 +27,10 @@ function mockConfigService(validateBalance: boolean = true): ConfigService {
 
 function mockCacheResult(): CacheResultService {
     return { clear: () => Promise.resolve() } as unknown as CacheResultService;
+}
+
+function mockOutboxService(): OutboxService {
+    return { save: () => Promise.resolve() } as unknown as OutboxService;
 }
 
 function makeCmd(overrides: Record<string, unknown>): CreateTransactionCommand {
@@ -58,6 +64,8 @@ describe('CreateTransactionHandler', () => {
                     provide: ConfigService,
                     useValue: mockConfigService(validateBalance),
                 },
+                { provide: OutboxService, useValue: mockOutboxService() },
+                { provide: EventEmitter2, useValue: { emit: jest.fn() } },
             ],
         }).compile();
 

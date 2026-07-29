@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { ClsModule } from 'nestjs-cls';
 import { ResilienceModule } from 'nestjs-resilience';
@@ -17,6 +18,8 @@ import { ConciliationModule } from '@features/conciliation/conciliation.module';
 import { AllExceptionsFilter } from '@shared/core/exceptions/exception-filter';
 import { HttpLoggingInterceptor } from '@shared/core/http-logging/http-logging.interceptor';
 import { HealthModule } from '@infrastructure/health/health.module';
+import { OutboxModule } from '@shared/outbox/outbox.module';
+import { BankApiModule } from '@shared/bank-api/bank-api.module';
 
 @Module({
     imports: [
@@ -24,6 +27,7 @@ import { HealthModule } from '@infrastructure/health/health.module';
         // individuales (ej. OrdersModule) cuando se necesiten políticas
         // diferentes por feature o se quiera limitar el scope.
         EventEmitterModule.forRoot({ global: true }),
+        ScheduleModule.forRoot(),
         ResilienceModule.forRoot({}),
         DatabaseModule.forRoot(),
         ClsModule.forRoot({
@@ -44,6 +48,8 @@ import { HealthModule } from '@infrastructure/health/health.module';
         HealthModule,
         AuthModule,
         ConciliationModule,
+        OutboxModule,
+        BankApiModule,
     ],
     providers: [
         {

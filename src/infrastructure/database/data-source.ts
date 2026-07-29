@@ -15,13 +15,12 @@ import { ProfilePermissionEntity } from '@features/auth/infrastructure/persisten
 import { ApiKeyEntity } from '@features/auth/infrastructure/persistence/typeorm/api-key.entity';
 import { ConciliationEntity } from '@features/conciliation/infrastructure/persistence/typeorm/conciliation.entity';
 import { ConciliationMatchEntity } from '@features/conciliation/infrastructure/persistence/typeorm/conciliation-match.entity';
+import { OutboxEventEntity } from '@shared/outbox/outbox-event.entity';
 
 const cfg = configuration();
 const db = cfg.database;
 
-let baseOptions: DataSourceOptions;
-
-baseOptions = {
+const baseOptions: DataSourceOptions = {
     type: 'postgres',
     host: db.postgres.host,
     port: db.postgres.port,
@@ -47,6 +46,7 @@ const options: DataSourceOptions & SeederOptions = {
         ApiKeyEntity,
         ConciliationEntity,
         ConciliationMatchEntity,
+        OutboxEventEntity,
     ],
     migrations: [`${db.migrations.dir}/**/*{.ts,.js}`],
     migrationsTableName: db.migrations.tableName,
