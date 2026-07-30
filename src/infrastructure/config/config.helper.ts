@@ -5,141 +5,110 @@ import { IAppConfig } from './config.interface';
 /**
  * Typed configuration helper
  * Provides strongly-typed access to application configuration
- * All returned values are fully typed with TypeScript inference
  *
- * Usage in services:
+ * For frequently-accessed or critical infrastructure values, use getter methods.
+ * For less frequently accessed values, use the config property directly:
+ *
+ * Usage example:
  * ```typescript
  * @Injectable()
  * export class MyService {
  *   constructor(private readonly configHelper: ConfigHelper) {}
  *
  *   init() {
+ *     // Critical infrastructure values - use getters
  *     const port = this.configHelper.getServerPort(); // ✅ number
- *     const redisHost = this.configHelper.getCacheRedisHost(); // ✅ string
+ *     const jwtSecret = this.configHelper.getJwtSecret(); // ✅ string
+ *
+ *     // Less frequent access - use direct property access
+ *     const corsOrigin = this.configHelper.config.server.cors.origin; // ✅ typed
+ *     const devMode = this.configHelper.config.app.isDevMode; // ✅ typed
  *   }
  * }
  * ```
  */
 @Injectable()
 export class ConfigHelper {
-    private config: IAppConfig;
+    private appConfig: IAppConfig;
 
     constructor(private readonly configService: ConfigService) {
-        this.config = this.configService.get<IAppConfig>('', {
+        this.appConfig = this.configService.get<IAppConfig>('', {
             infer: true,
         }) as IAppConfig;
     }
 
-    // Feature Flags
-    shouldValidateBalance(): boolean {
-        return this.config.features.validateBalance;
+    /**
+     * Direct access to entire configuration (typed)
+     * Use for values not covered by dedicated getters
+     */
+    get config(): IAppConfig {
+        return this.appConfig;
     }
 
-    // App Settings
-    isDevMode(): boolean {
-        return this.config.app.isDevMode;
-    }
+    // === Critical Infrastructure Getters ===
 
     // Server Configuration
     getServerPort(): number {
-        return this.config.server.port;
+        return this.appConfig.server.port;
     }
 
     getServerPrefix(): string {
-        return this.config.server.prefix;
-    }
-
-    getCorsOrigin(): string {
-        return this.config.server.cors.origin;
-    }
-
-    getCorsMethods(): string {
-        return this.config.server.cors.methods;
-    }
-
-    getCorsCredentials(): boolean {
-        return this.config.server.cors.credentials;
+        return this.appConfig.server.prefix;
     }
 
     // Cache Configuration
     getCacheRedisHost(): string {
-        return this.config.cache.redis.host;
+        return this.appConfig.cache.redis.host;
     }
 
     getCacheRedisTtl(): number {
-        return this.config.cache.redis.ttl;
+        return this.appConfig.cache.redis.ttl;
     }
 
-    // Database Configuration
+    // Database Configuration (required for TypeORM setup)
     getDatabaseHost(): string {
-        return this.config.database.postgres.host;
+        return this.appConfig.database.postgres.host;
     }
 
     getDatabasePort(): number {
-        return this.config.database.postgres.port;
+        return this.appConfig.database.postgres.port;
     }
 
     getDatabaseUsername(): string {
-        return this.config.database.postgres.username;
+        return this.appConfig.database.postgres.username;
     }
 
     getDatabasePassword(): string {
-        return this.config.database.postgres.password;
+        return this.appConfig.database.postgres.password;
     }
 
     getDatabaseName(): string {
-        return this.config.database.postgres.name;
+        return this.appConfig.database.postgres.name;
     }
 
-    getDatabaseSynchronize(): boolean {
-        return this.config.database.postgres.synchronize;
-    }
-
-    getMigrationsDir(): string {
-        return this.config.database.migrations.dir;
-    }
-
-    getMigrationsTableName(): string {
-        return this.config.database.migrations.tableName;
-    }
-
-    // Security - JWT
+    // Security - JWT (used throughout auth services)
     getJwtSecret(): string {
-        return this.config.security.jwt.secret;
+        return this.appConfig.security.jwt.secret;
     }
 
     getJwtExpiresIn(): string {
-        return this.config.security.jwt.expiresIn;
+        return this.appConfig.security.jwt.expiresIn;
     }
 
     getJwtRefreshExpiresIn(): number {
-        return this.config.security.jwt.refreshExpiresIn;
+        return this.appConfig.security.jwt.refreshExpiresIn;
     }
 
-    // Security - CSRF
+    // Security - CSRF (required for middleware)
     isCsrfEnabled(): boolean {
-        return this.config.security.csrf.enabled;
+        return this.appConfig.security.csrf.enabled;
     }
 
     getCsrfSecret(): string {
-        return this.config.security.csrf.secret;
+        return this.appConfig.security.csrf.secret;
     }
 
     getCsrfCookieName(): string {
-        return this.config.security.csrf.cookieName;
-    }
-
-    // Seed Configuration
-    getSeedAdminEmail(): string | undefined {
-        return this.config.seed?.adminEmail;
-    }
-
-    getSeedAdminPassword(): string | undefined {
-        return this.config.seed?.adminPassword;
-    }
-
-    // Direct access to entire config (if needed)
-    getConfig(): IAppConfig {
-        return this.config;
+        return this.appConfig.security.csrf.cookieName;
     }
 }

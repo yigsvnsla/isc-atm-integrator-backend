@@ -7,6 +7,7 @@ import {
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
+import type { ConfigHelper } from '@infrastructure/config/config.helper'; // <-- Import de ConfigHelper para evitar uso directo de ConfigService
 import {
     ResilienceCommand,
     CircuitBreakerStrategy,
@@ -28,7 +29,6 @@ import type { IBankAccountRepository } from '@features/accounts/domain/account.r
 import { ResponseMetadataBuilder } from '@shared/core/response/api-response-metadata-builder';
 import { CacheResultService } from '@core/cache/cache-result.service';
 import { TransactionCreatedEvent } from '@features/transactions/application/events/transaction-created.event';
-import type { AppConfigService } from '@shared/core/types';
 import { OutboxService } from '@shared/outbox';
 
 @CommandHandler(CreateTransactionCommand)
@@ -45,6 +45,7 @@ export class CreateTransactionHandler
         private readonly configService: ConfigService,
         private readonly eventEmitter: EventEmitter2,
         private readonly outboxService: OutboxService,
+        private readonly configHelper: ConfigHelper, // <--- para evitar boilerplate de inyección de ConfigService y casteo a AppConfigService
     ) {
         super([
             new CircuitBreakerStrategy({
@@ -73,9 +74,12 @@ export class CreateTransactionHandler
             command.operation,
         );
 
-        const validateBalance = (
-            this.configService as unknown as AppConfigService
-        ).get('features.validateBalance', { infer: true });
+        // const validateBalance = (
+        //     this.configService as unknown as AppConfigService
+        // ).get('features.validateBalance', { infer: true });
+
+        const validateBalance =
+            this.configHelper.config.features.validateBalance;
 
         if (
             validateBalance &&

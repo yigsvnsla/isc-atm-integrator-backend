@@ -219,28 +219,35 @@ export default (): IAppConfig => {
 
 ### File: `config.helper.ts`
 
-Provides typed, easy-to-use getter methods for all configuration values:
+Provides typed access to critical infrastructure configuration values. Two approaches:
+
+1. **Dedicated getters** for frequently-accessed values (startup, security)
+2. **Direct property access** via `.config` for everything else (maintains full type safety)
 
 ```typescript
 @Injectable()
 export class ConfigHelper {
-  constructor(private readonly configService: ConfigService) {}
+  private appConfig: IAppConfig;
 
-  getServerPort(): number {
-    return this.configService.get<IAppConfig>('').server.port;
+  constructor(private readonly configService: ConfigService) {
+    this.appConfig = this.configService.get<IAppConfig>('', { infer: true }) as IAppConfig;
   }
 
-  getCacheRedisHost(): string {
-    return this.configService.get<IAppConfig>('').cache.redis.host;
+  // Direct access to entire config (typed)
+  get config(): IAppConfig {
+    return this.appConfig;
   }
 
-  getJwtSecret(): string {
-    return this.configService.get<IAppConfig>('').security.jwt.secret;
-  }
-  
-  // ... more typed getters for each config value
+  // Critical infrastructure getters
+  getServerPort(): number { return this.appConfig.server.port; }
+  getCacheRedisHost(): string { return this.appConfig.cache.redis.host; }
+  getDatabaseHost(): string { return this.appConfig.database.postgres.host; }
+  getJwtSecret(): string { return this.appConfig.security.jwt.secret; }
+  // ... more critical getters
 }
 ```
+
+**Design**: Reduces boilerplate while keeping infrastructure values protected from refactoring.
 
 ---
 
@@ -300,18 +307,19 @@ export class DatabaseService {
   constructor(private readonly configHelper: ConfigHelper) {}
 
   getConnectionConfig() {
-    // All values are fully typed ✅
+    // Critical infrastructure - use dedicated getters
     return {
-      host: this.configHelper.getDatabaseHost(),           // string
-      port: this.configHelper.getDatabasePort(),           // number
-      username: this.configHelper.getDatabaseUsername(),   // string
-      password: this.configHelper.getDatabasePassword(),   // string
-      database: this.configHelper.getDatabaseName(),       // string
+      host: this.configHelper.getDatabaseHost(),           // ✅ string
+      port: this.configHelper.getDatabasePort(),           // ✅ number
+      username: this.configHelper.getDatabaseUsername(),   // ✅ string
+      password: this.configHelper.getDatabasePassword(),   // ✅ string
+      database: this.configHelper.getDatabaseName(),       // ✅ string
     };
   }
 
   isProduction() {
-    return !this.configHelper.isDevMode();  // boolean
+    // Less critical - direct property access (still typed!)
+    return !this.configHelper.config.app.isDevMode;  // ✅ boolean
   }
 }
 ```
@@ -329,24 +337,32 @@ export class InfoController {
   @Get('server')
   getServerInfo() {
     return {
+      // Critical values - use getters
       port: this.configHelper.getServerPort(),        // ✅ number
       prefix: this.configHelper.getServerPrefix(),    // ✅ string
-      isDev: this.configHelper.isDevMode(),           // ✅ boolean
-      cors: {
-        origin: this.configHelper.getCorsOrigin(),    // ✅ string
-        credentials: this.configHelper.getCorsCredentials(),  // ✅ boolean
-      },
+      
+      // Less critical - direct property access (still typed!)
+      isDev: this.configHelper.config.app.isDevMode,           // ✅ boolean
+      corsOrigin: this.configHelper.config.server.cors.origin, // ✅ string
+      corsCredentials: this.configHelper.config.server.cors.credentials,  // ✅ boolean
     };
   }
 }
 ```
 
-### Pattern 3: Direct Config Access (When Needed)
+### Pattern 3: Direct Config Property Access
+
+For less frequently accessed values, use the `.config` property for clean, typed access:
 
 ```typescript
-const fullConfig = this.configHelper.getConfig();  // IAppConfig
-const corsConfig = fullConfig.server.cors;         // Fully typed
-console.log(corsConfig.origin);  // TypeScript knows this is string
+// Accessing nested config values directly (all fully typed)
+const corsConfig = this.configHelper.config.server.cors;         // ✅ typed
+const seedEmail = this.configHelper.config.seed?.adminEmail;     // ✅ typed
+const migDir = this.configHelper.config.database.migrations.dir;  // ✅ typed
+
+// TypeScript knows exact types at each level
+console.log(corsConfig.origin);  // TypeScript: string
+console.log(corsConfig.credentials);  // TypeScript: boolean
 ```
 
 ---
@@ -428,14 +444,18 @@ APP_SEED_ADMIN_EMAIL: Joi.string().optional().allow(''),  // Accepts any string
 
 ## Best Practices
 
-### 1. Keep Everything in Sync
+### 1. Keep Critical Infrastructure Values Synchronized
 
-When adding a new environment variable:
+When adding a **critical infrastructure** value (server config, database credentials, JWT, CSRF):
 1. Add to `.env` file with example value
 2. Add Joi validation rule to `configuration.validation.ts`
 3. Add field to `IAppConfig` interface in `config.interface.ts`
 4. Add to config factory in `configuration.ts` using `getEnv()`
-5. Add typed getter method to `ConfigHelper` service
+5. Add typed **getter method** to `ConfigHelper` service
+
+For **non-critical** values (feature flags, app settings, CORS details):
+- Steps 1-4 above still apply
+- No getter method needed—access directly via `configHelper.config.*`
 
 ### 2. Use Meaningful Error Messages
 
@@ -458,7 +478,7 @@ APP_SERVER_PORT: Joi.number().port().required(),
 DB_HOST: Joi.string().required(),
 ```
 
-### 4. Always Use ConfigHelper in Application Code
+### 4. Always Use ConfigHelper for Config Access
 
 Never access `process.env` directly in services/controllers:
 
@@ -466,21 +486,38 @@ Never access `process.env` directly in services/controllers:
 // ❌ Bad - untyped, requires defensive checks
 const port = parseInt(process.env.APP_SERVER_PORT || '3000', 10);
 
-// ✅ Good - typed, guaranteed to exist
+// ✅ Good - typed, guaranteed to exist (critical infrastructure)
 const port = this.configHelper.getServerPort();
+
+// ✅ Good - typed, direct property access (less critical)
+const isDev = this.configHelper.config.app.isDevMode;
 ```
 
-### 5. Use Full Config Access Sparingly
+### 5. Access Patterns: Getters vs. Direct Properties
 
-Most of the time, use specific getters:
+**Use dedicated getters** for critical infrastructure values:
+- Server port/prefix (startup config)
+- Database credentials (connection setup)
+- JWT secrets (auth setup)
+- CSRF config (middleware setup)
+- Redis host/TTL (cache setup)
+
+**Use direct property access** (`.config.*`) for everything else:
+- Feature flags (`config.features.*`)
+- App mode settings (`config.app.*`)
+- CORS details (`config.server.cors.*`)
+- Migrations config (`config.database.migrations.*`)
+- Seed configuration (`config.seed.*`)
+
+This keeps the helper focused while maintaining full type safety:
 
 ```typescript
-// ✅ Preferred - IDE autocomplete, clear intent
-const port = this.configHelper.getServerPort();
+// ✅ Critical infrastructure - use getters
+const secret = this.configHelper.getJwtSecret();
 
-// Acceptable only when you need multiple nested values
-const config = this.configHelper.getConfig();
-const { host, port, username } = config.database.postgres;
+// ✅ Everything else - direct property access
+const corsOrigin = this.configHelper.config.server.cors.origin;
+const shouldValidate = this.configHelper.config.features.validateBalance;
 ```
 
 ---
@@ -569,10 +606,25 @@ This shouldn't happen if validation passed, but if it does:
 This complete validation and typed configuration system provides:
 
 ✅ **Fail-fast startup validation** - Missing/invalid env vars caught immediately  
-✅ **Full TypeScript type safety** - No `undefined` errors, IDE autocomplete  
-✅ **Centralized rules** - All validation in one schema file  
-✅ **Easy to use** - Simple getter methods with clear names  
+✅ **Full TypeScript type safety** - No `undefined` errors, IDE autocomplete at every level  
+✅ **Centralized validation** - All validation rules in one schema file  
+✅ **Reduced boilerplate** - Focused helper methods only for critical infrastructure  
+✅ **Direct property access** - Type-safe access to all config without getter methods  
 ✅ **Production-ready** - Guaranteed configuration validity  
-✅ **Maintainable** - Single source of truth for all config  
+✅ **Maintainable** - Single source of truth, clear separation of concerns  
 
-By combining Joi validation with ConfigHelper, your application has rock-solid configuration that's safe, typed, and easy to use throughout your codebase.
+### Why This Design?
+
+**Problem**: Too many getter methods made the helper bloated and maintenance-heavy. Every new config value required a new getter method.
+
+**Solution**: 
+- Dedicated getters only for **critical infrastructure values** (startup-critical, security-sensitive)
+- Direct property access (`.config.*`) for **everything else**, still fully typed via `IAppConfig` interface
+
+This strikes a balance:
+- Infrastructure values are protected by explicit getters (refactoring-safe)
+- Flexibility for application-level config (feature flags, app settings)
+- All access is fully typed (no TypeScript `any`)
+- Minimal boilerplate
+
+By combining Joi validation with a lightweight ConfigHelper, your application has rock-solid configuration that's safe, typed, maintainable, and easy to use throughout your codebase.
