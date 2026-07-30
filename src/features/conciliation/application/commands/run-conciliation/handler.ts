@@ -11,6 +11,9 @@ import { RunConciliationCommand } from './command';
 import { ConciliationResponse } from '../../queries/get-conciliations/response.dto';
 import { ResponseMetadataBuilder } from '@shared/core/response/api-response-metadata-builder';
 import { ConciliationCompletedEvent } from '@features/conciliation/application/events/conciliation-completed.event';
+import { BANK_ACCOUNT_REPOSITORY } from '@features/accounts/domain/account.repository';
+import type { IBankAccountRepository } from '@features/accounts/domain/account.repository';
+import { OutboxService } from '@shared/outbox';
 
 @CommandHandler(RunConciliationCommand)
 export class RunConciliationHandler implements ICommandHandler<RunConciliationCommand> {
@@ -19,11 +22,14 @@ export class RunConciliationHandler implements ICommandHandler<RunConciliationCo
         private readonly conciliationRepository: IConciliationRepository,
         @Inject(TRANSACTION_REPOSITORY)
         private readonly transactionRepository: ITransactionRepository,
+        @Inject(BANK_ACCOUNT_REPOSITORY)
+        private readonly accountRepository: IBankAccountRepository,
         private readonly eventEmitter: EventEmitter2,
+        private readonly outboxService: OutboxService,
     ) {}
 
     public async execute(
-        command: RunConciliationCommand,
+        _command: RunConciliationCommand,
     ): Promise<ConciliationResponse> {
         const bankATxs = (
             await this.transactionRepository.findAll(
@@ -126,6 +132,72 @@ export class RunConciliationHandler implements ICommandHandler<RunConciliationCo
 
         for (const match of matchBuilders) {
             await this.conciliationRepository.createMatch(match);
+        }
+
+        const processedIds = new Set<string>();
+        for (const match of matchBuilders) {
+            if (match.status !== 'matched' && match.status !== 'discrepancy')
+                continue;
+
+            if (match.internalTxId && !processedIds.has(match.internalTxId)) {
+                processedIds.add(match.internalTxId);
+                const txA = bankATxs.find((t) => t.id === match.internalTxId);
+                if (txA) {
+                    const account = await this.accountRepository.findById(
+                        txA.bankAccountId,
+                    );
+                    await this.outboxService.save({
+                        aggregateId: txA.id,
+                        eventType: 'transaction.completed',
+                        payload: {
+                            transaction: {
+                                id: txA.id,
+                                amount: txA.amount,
+                                operation: txA.operation,
+                                type: txA.type,
+                                state: txA.state,
+                                description: txA.description,
+                                bankAccountId: txA.bankAccountId,
+                                correlationId: txA.correlationId,
+                                sourceBank: txA.sourceBank,
+                                createdAt: txA.createdAt.toISOString(),
+                                updatedAt: txA.updatedAt.toISOString(),
+                            },
+                            agreementId: account?.agreementId,
+                        },
+                    });
+                }
+            }
+
+            if (match.externalTxId && !processedIds.has(match.externalTxId)) {
+                processedIds.add(match.externalTxId);
+                const txB = bankBTxs.find((t) => t.id === match.externalTxId);
+                if (txB) {
+                    const account = await this.accountRepository.findById(
+                        txB.bankAccountId,
+                    );
+                    await this.outboxService.save({
+                        aggregateId: txB.id,
+                        eventType: 'transaction.completed',
+                        payload: {
+                            transaction: {
+                                id: txB.id,
+                                amount: txB.amount,
+                                operation: txB.operation,
+                                type: txB.type,
+                                state: txB.state,
+                                description: txB.description,
+                                bankAccountId: txB.bankAccountId,
+                                correlationId: txB.correlationId,
+                                sourceBank: txB.sourceBank,
+                                createdAt: txB.createdAt.toISOString(),
+                                updatedAt: txB.updatedAt.toISOString(),
+                            },
+                            agreementId: account?.agreementId,
+                        },
+                    });
+                }
+            }
         }
 
         this.eventEmitter.emit(

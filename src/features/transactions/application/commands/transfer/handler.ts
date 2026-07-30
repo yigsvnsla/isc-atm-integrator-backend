@@ -25,6 +25,7 @@ import { BANK_ACCOUNT_REPOSITORY } from '@features/accounts/domain/account.repos
 import type { IBankAccountRepository } from '@features/accounts/domain/account.repository';
 import { ResponseMetadataBuilder } from '@shared/core/response/api-response-metadata-builder';
 import { CacheResultService } from '@core/cache/cache-result.service';
+import { OutboxService } from '@shared/outbox';
 
 @CommandHandler(TransferCommand)
 export class TransferHandler
@@ -38,6 +39,7 @@ export class TransferHandler
         private readonly accountRepository: IBankAccountRepository,
         private readonly cacheResult: CacheResultService,
         private readonly configService: ConfigService,
+        private readonly outboxService: OutboxService,
     ) {
         super([
             new CircuitBreakerStrategy({
@@ -68,7 +70,10 @@ export class TransferHandler
             );
         }
 
-        const validateBalance = this.configService.get('features.validateBalance', { infer: true });
+        const validateBalance = this.configService.get<boolean>(
+            'features.validateBalance',
+            { infer: true },
+        ) as boolean;
 
         if (validateBalance && fromAccount.balance < command.amount) {
             throw new ConflictException(
@@ -110,6 +115,48 @@ export class TransferHandler
 
         await this.repository.save(debit);
         await this.repository.save(credit);
+
+        await this.outboxService.save({
+            aggregateId: debit.id,
+            eventType: 'transaction.completed',
+            payload: {
+                transaction: {
+                    id: debit.id,
+                    amount: debit.amount,
+                    operation: debit.operation,
+                    type: debit.type,
+                    state: debit.state,
+                    description: debit.description,
+                    bankAccountId: debit.bankAccountId,
+                    correlationId: debit.correlationId,
+                    sourceBank: debit.sourceBank,
+                    createdAt: debit.createdAt.toISOString(),
+                    updatedAt: debit.updatedAt.toISOString(),
+                },
+                agreementId: fromAccount.agreementId,
+            },
+        });
+
+        await this.outboxService.save({
+            aggregateId: credit.id,
+            eventType: 'transaction.completed',
+            payload: {
+                transaction: {
+                    id: credit.id,
+                    amount: credit.amount,
+                    operation: credit.operation,
+                    type: credit.type,
+                    state: credit.state,
+                    description: credit.description,
+                    bankAccountId: credit.bankAccountId,
+                    correlationId: credit.correlationId,
+                    sourceBank: credit.sourceBank,
+                    createdAt: credit.createdAt.toISOString(),
+                    updatedAt: credit.updatedAt.toISOString(),
+                },
+                agreementId: toAccount.agreementId,
+            },
+        });
 
         const metadata = new ResponseMetadataBuilder()
             .setStatusCode(HttpStatus.CREATED)

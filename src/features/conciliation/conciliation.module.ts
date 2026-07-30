@@ -12,12 +12,16 @@ import { ResolveDiscrepancyHandler } from './application/commands/resolve-discre
 import { GetConciliationsHandler } from './application/queries/get-conciliations/handler';
 import { GetConciliationReportHandler } from './application/queries/get-conciliation-report/handler';
 import { TransactionsModule } from '@features/transactions/transactions.module';
+import { BankAccountsModule } from '@features/accounts/accounts.module';
+import { OutboxModule } from '@shared/outbox';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([ConciliationEntity, ConciliationMatchEntity]),
         CqrsModule,
         TransactionsModule,
+        BankAccountsModule,
+        OutboxModule,
     ],
     controllers: [ConciliationController],
     providers: [

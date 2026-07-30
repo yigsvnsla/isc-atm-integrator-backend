@@ -18,8 +18,11 @@ import {
     Transaction,
     ALLOWED_STATE_TRANSITIONS,
 } from '@features/transactions/domain/transaction';
+import { BANK_ACCOUNT_REPOSITORY } from '@features/accounts/domain/account.repository';
+import type { IBankAccountRepository } from '@features/accounts/domain/account.repository';
 import { ResponseMetadataBuilder } from '@shared/core/response/api-response-metadata-builder';
 import { CacheResultService } from '@core/cache/cache-result.service';
+import { OutboxService } from '@shared/outbox';
 
 @CommandHandler(UpdateTransactionStateCommand)
 export class UpdateTransactionStateHandler
@@ -29,7 +32,10 @@ export class UpdateTransactionStateHandler
     public constructor(
         @Inject(TRANSACTION_REPOSITORY)
         private readonly repository: ITransactionRepository,
+        @Inject(BANK_ACCOUNT_REPOSITORY)
+        private readonly accountRepository: IBankAccountRepository,
         private readonly cacheResult: CacheResultService,
+        private readonly outboxService: OutboxService,
     ) {
         super([
             new CircuitBreakerStrategy({
@@ -61,9 +67,37 @@ export class UpdateTransactionStateHandler
 
         void this.cacheResult.clear();
 
+        const previousState = entity.state;
         entity.state = command.state;
         entity.updatedAt = new Date();
         await this.repository.save(entity as unknown as Transaction);
+
+        const account = await this.accountRepository.findById(
+            entity.bankAccountId,
+        );
+        const agreementId = account?.agreementId;
+
+        await this.outboxService.save({
+            aggregateId: entity.id,
+            eventType: 'transaction.state_changed',
+            payload: {
+                transaction: {
+                    id: entity.id,
+                    amount: entity.amount,
+                    operation: entity.operation,
+                    type: entity.type,
+                    state: entity.state,
+                    previousState,
+                    description: entity.description,
+                    bankAccountId: entity.bankAccountId,
+                    correlationId: entity.correlationId,
+                    sourceBank: entity.sourceBank,
+                    createdAt: entity.createdAt.toISOString(),
+                    updatedAt: entity.updatedAt.toISOString(),
+                },
+                agreementId,
+            },
+        });
 
         const metadata = new ResponseMetadataBuilder()
             .setStatusCode(HttpStatus.OK)

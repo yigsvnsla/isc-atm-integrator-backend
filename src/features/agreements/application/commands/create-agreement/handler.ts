@@ -47,6 +47,9 @@ export class CreateAgreementHandler
             .setName(command.name)
             .setReference(command.reference)
             .setState(AGREEMENT_STATE.ACTIVE)
+            .setApiUrl(command.apiUrl)
+            .setAuthType(command.authType)
+            .setAuthConfig(command.authConfig)
             .setCreatedAt(new Date())
             .setUpdatedAt(new Date())
             .build();

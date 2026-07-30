@@ -29,6 +29,7 @@ import { ResponseMetadataBuilder } from '@shared/core/response/api-response-meta
 import { CacheResultService } from '@core/cache/cache-result.service';
 import { TransactionCreatedEvent } from '@features/transactions/application/events/transaction-created.event';
 import type { AppConfigService } from '@shared/core/types';
+import { OutboxService } from '@shared/outbox';
 
 @CommandHandler(CreateTransactionCommand)
 export class CreateTransactionHandler
@@ -43,6 +44,7 @@ export class CreateTransactionHandler
         private readonly cacheResult: CacheResultService,
         private readonly configService: ConfigService,
         private readonly eventEmitter: EventEmitter2,
+        private readonly outboxService: OutboxService,
     ) {
         super([
             new CircuitBreakerStrategy({
@@ -116,6 +118,27 @@ export class CreateTransactionHandler
                 result.operation,
             ),
         );
+
+        await this.outboxService.save({
+            aggregateId: result.id,
+            eventType: 'transaction.completed',
+            payload: {
+                transaction: {
+                    id: result.id,
+                    amount: result.amount,
+                    operation: result.operation,
+                    type: result.type,
+                    state: result.state,
+                    description: result.description,
+                    bankAccountId: result.bankAccountId,
+                    correlationId: result.correlationId,
+                    sourceBank: result.sourceBank,
+                    createdAt: result.createdAt.toISOString(),
+                    updatedAt: result.updatedAt.toISOString(),
+                },
+                agreementId: account.agreementId,
+            },
+        });
 
         const metadata = new ResponseMetadataBuilder()
             .setStatusCode(HttpStatus.CREATED)

@@ -14,6 +14,15 @@ export class AgreementEntity {
     @Column({ name: 'state' })
     public state: string;
 
+    @Column({ name: 'api_url', nullable: true })
+    public apiUrl?: string;
+
+    @Column({ name: 'auth_type', nullable: true })
+    public authType?: string;
+
+    @Column({ name: 'auth_config', type: 'jsonb', nullable: true })
+    public authConfig?: Record<string, any>;
+
     @Column({ name: 'created_at' })
     public createdAt: Date;
 
