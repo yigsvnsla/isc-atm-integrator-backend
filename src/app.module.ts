@@ -7,6 +7,7 @@ import { ClsModule } from 'nestjs-cls';
 import { ResilienceModule } from 'nestjs-resilience';
 import configuration from '@infrastructure/config/configuration';
 import { configValidationSchema } from '@infrastructure/config/configuration.validation';
+import { ConfigHelper } from '@infrastructure/config/config.helper';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { CacheModule } from './infrastructure/cache/cache.module';
 import { OrdersModule } from './features/orders/orders.module';
@@ -59,6 +60,7 @@ import { BankApiModule } from '@shared/bank-api/bank-api.module';
         BankApiModule,
     ],
     providers: [
+        ConfigHelper,
         {
             provide: APP_FILTER,
             useClass: AllExceptionsFilter,
