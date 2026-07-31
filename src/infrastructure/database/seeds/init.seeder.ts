@@ -14,8 +14,8 @@ export default class InitSeeder implements Seeder {
         await runSeeders(dataSource, {
             seeds: [
                 ProfileSeeder,
-                AdminUserSeeder,
                 AgreementSeeder,
+                AdminUserSeeder,
                 BankAccountSeeder,
             ],
             factories: [bankAccountFactory, agreementFactory],
